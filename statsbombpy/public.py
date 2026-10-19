@@ -1,11 +1,10 @@
-import requests as req
-
 import statsbombpy.entities as ents
 from statsbombpy.config import OPEN_DATA_PATHS
+from statsbombpy.cache import session
 
 
 def get_response(path):
-    response = req.get(path)
+    response = session.get(path)
     response.raise_for_status()
     data = response.json()
     return data

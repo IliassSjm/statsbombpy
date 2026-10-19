@@ -11,9 +11,9 @@ from statsbombpy.helpers import (filter_and_group_events,
                                  split_location_cols)
 
 
-def competitions(fmt="dataframe", creds: dict = DEFAULT_CREDS):
+def competitions(fmt="dataframe", creds: dict = DEFAULT_CREDS, version: str = None):
     if api_client.has_auth(creds) is True:
-        competitions = api_client.competitions(creds)
+        competitions = api_client.competitions(creds, version=version)
     else:
         competitions = public.competitions()
     if fmt == "dataframe":
@@ -24,10 +24,16 @@ def competitions(fmt="dataframe", creds: dict = DEFAULT_CREDS):
 
 
 def matches(
-    competition_id: int, season_id: int, fmt="dataframe", creds: dict = DEFAULT_CREDS
+    competition_id: int,
+    season_id: int,
+    fmt="dataframe",
+    creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ):
     if api_client.has_auth(creds) is True:
-        matches = api_client.matches(competition_id, season_id, creds=creds)
+        matches = api_client.matches(
+            competition_id, season_id, creds=creds, version=version
+        )
     else:
         matches = public.matches(competition_id, season_id)
     if fmt == "dataframe":
@@ -112,9 +118,11 @@ def matches(
     return matches
 
 
-def lineups(match_id, fmt="dataframe", creds: dict = DEFAULT_CREDS):
+def lineups(
+    match_id, fmt="dataframe", creds: dict = DEFAULT_CREDS, version: str = None
+):
     if api_client.has_auth(creds) is True:
-        lineups = api_client.lineups(match_id, creds=creds)
+        lineups = api_client.lineups(match_id, creds=creds, version=version)
     else:
         lineups = public.lineups(match_id)
     if fmt == "dataframe":
@@ -144,13 +152,14 @@ def events(
     flatten_attrs: bool = True,
     creds: dict = DEFAULT_CREDS,
     include_360_metrics=False,
+    version: str = None,
     split_locations: bool = False,
 ) -> Union[pd.DataFrame, dict]:
 
     if not api_client.has_auth(creds) and include_360_metrics:
         raise Exception("360 metrics not available in open data")
     if api_client.has_auth(creds) is True:
-        events = api_client.events(match_id, creds=creds)
+        events = api_client.events(match_id, creds=creds, version=version)
     else:
         events = public.events(match_id)
 
@@ -179,6 +188,7 @@ def competition_events(
     fmt: str = "dataframe",
     creds: dict = DEFAULT_CREDS,
     include_360_metrics=False,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
 
     c = competitions(creds=creds, fmt="dict")[country, division, season, gender]
@@ -188,6 +198,7 @@ def competition_events(
         fmt="json",
         creds=creds,
         include_360_metrics=include_360_metrics,
+        version=version,
     )
     with Pool(MAX_CONCURRENCY) as p:
         matches_events = p.map(
@@ -212,9 +223,10 @@ def competition_events(
 def _360_frames(
     match_id: int,
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, list, dict]:
     if api_client.has_auth(creds) is True:
-        frames = api_client.frames(match_id, creds=creds)
+        frames = api_client.frames(match_id, creds=creds, version=version)
     else:
         frames = public.frames(match_id)
     return frames
@@ -224,8 +236,9 @@ def frames(
     match_id: int,
     fmt: str = "dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, list, dict]:
-    frames = _360_frames(match_id, creds)
+    frames = _360_frames(match_id, creds, version=version)
     for frame in frames:
         if "distances_from_edge_of_visible_area" in frame:
             if frame["distances_from_edge_of_visible_area"] is not None:
@@ -240,7 +253,7 @@ def frames(
         frames = pd.concat(
             [
                 frames.drop("freeze_frame", axis=1).reset_index(drop=True),
-                pd.json_normalize(frames.freeze_frame),
+                pd.json_normalize(frames.freeze_frame).reset_index(drop=True),
             ],
             axis=1,
         )
@@ -255,6 +268,7 @@ def competition_frames(
     gender: str = "male",
     fmt: str = "dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
 
     c = competitions(creds=creds, fmt="dict")[country, division, season, gender]
@@ -263,6 +277,7 @@ def competition_frames(
         frames,
         fmt="json",
         creds=creds,
+        version=version,
     )
     with Pool(MAX_CONCURRENCY) as p:
         competition_frames = p.map(
@@ -291,9 +306,12 @@ def player_match_stats(
     match_id: int,
     fmt: str = "dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
     if api_client.has_auth(creds) is True:
-        player_match_stats = api_client.player_match_stats(match_id, creds=creds)
+        player_match_stats = api_client.player_match_stats(
+            match_id, creds=creds, version=version
+        )
     else:
         raise Exception(
             "There is currently no open data for aggregated stats, please provide credentials"
@@ -308,10 +326,11 @@ def player_season_stats(
     season_id: int,
     fmt="dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
     if api_client.has_auth(creds) is True:
         player_season_stats = api_client.player_season_stats(
-            competition_id, season_id, creds=creds
+            competition_id, season_id, creds=creds, version=version
         )
     else:
         raise Exception(
@@ -326,9 +345,12 @@ def team_match_stats(
     match_id: int,
     fmt: str = "dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
     if api_client.has_auth(creds) is True:
-        team_match_stats = api_client.team_match_stats(match_id, creds=creds)
+        team_match_stats = api_client.team_match_stats(
+            match_id, creds=creds, version=version
+        )
     else:
         raise Exception(
             "There is currently no open data for aggregated stats, please provide credentials"
@@ -343,10 +365,11 @@ def team_season_stats(
     season_id: int,
     fmt="dataframe",
     creds: dict = DEFAULT_CREDS,
+    version: str = None,
 ) -> Union[pd.DataFrame, dict]:
     if api_client.has_auth(creds) is True:
         team_season_stats = api_client.team_season_stats(
-            competition_id, season_id, creds=creds
+            competition_id, season_id, creds=creds, version=version
         )
     else:
         raise Exception(

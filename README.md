@@ -899,6 +899,10 @@ events = sb.events(match_id=303299)
 
 
 
+By default, event-specific attributes are flattened into columns. For `50/50` events,
+the outcome name is available in `50_50_outcome`. Use `flatten_attrs=False` to retain
+the nested `50_50` object instead.
+
 It's also possible to get distinct dataframes for each event type and/or to have distinct event attributes on their own columns
 ```
 sb.events(match_id=303299, split=True, flatten_attrs=False)["dribbles"]
@@ -2663,4 +2667,63 @@ sb.team_match_stats(3772072, fmt="dict")
 
 sb.team_season_stats(competition_id=9, season_id=42, fmt="dict")
 
+```
+
+
+## Common Patterns
+
+### Filtering for goals
+
+StatsBomb does not have a dedicated `"Goal"` event type. Goals are encoded as
+`Shot` events where `shot_outcome == "Goal"`. Filtering on `type == "Goal"` will
+return an empty DataFrame.
+
+```python
+events = sb.events(match_id=303299, flatten_attrs=True)
+
+goals = events[
+    (events["type"] == "Shot") &
+    (events["shot_outcome"] == "Goal")
+]
+```
+
+To exclude the penalty shootout (period 5), where each kick is an isolated event
+rather than part of an open-play sequence:
+
+```python
+goals = events[
+    (events["type"] == "Shot") &
+    (events["shot_outcome"] == "Goal") &
+    (events["period"] < 5)
+]
+```
+
+### Reconstructing possession sequences
+
+Every event carries a `possession` column — an integer that increments each time
+possession changes. All events sharing the same `possession` value belong to the
+same unbroken sequence, making it the most reliable way to reconstruct the
+build-up to a goal.
+
+```python
+goal = goals.iloc[0]
+buildup = events[events["possession"] == goal["possession"]]
+```
+
+For set pieces (penalties, free kicks, corners), the kick itself opens a new
+possession sequence. The foul or challenge that earned it belongs to the prior
+sequence (`possession - 1`).
+
+```python
+prior_possession = events[events["possession"] == goal["possession"] - 1]
+```
+
+### Ordering events across periods
+
+The `timestamp` column resets to `00:00:00.000` at the start of each period.
+Sorting on `timestamp` alone will produce incorrect ordering in matches that go
+to extra time. Use `(period, timestamp)` together for reliable chronological order.
+
+```python
+events_sorted = events.sort_values(["period", "timestamp"])
 ```
