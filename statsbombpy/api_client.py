@@ -1,16 +1,12 @@
 import warnings
-from tempfile import mkdtemp
 
 import requests as req
-from requests_cache import install_cache
 
 import statsbombpy.entities as ents
-from statsbombpy.config import (API_VERSION_KEYS, CACHED_CALLS_SECS, HOSTNAME,
-                                VERSIONS, _VERSION)
+from statsbombpy.cache import session
+from statsbombpy.config import API_VERSION_KEYS, HOSTNAME, VERSIONS, _VERSION
 
 HEADERS = {"User-Agent": f"statsbombpy/{_VERSION}"}
-
-install_cache(mkdtemp(), backend="sqlite", expire_after=CACHED_CALLS_SECS)
 
 # session-lifetime cache; None until the first successful fetch
 _ENDPOINT_VERSIONS = None
@@ -33,7 +29,7 @@ def has_auth(creds):
 
 def get_resource(url: str, creds: dict) -> list:
     auth = req.auth.HTTPBasicAuth(creds["user"], creds["passwd"])
-    resp = req.get(url, auth=auth, headers=HEADERS)
+    resp = session.get(url, auth=auth, headers=HEADERS)
     if resp.status_code != 200:
         print(f"{url} -> {resp.status_code}")
         resp = []

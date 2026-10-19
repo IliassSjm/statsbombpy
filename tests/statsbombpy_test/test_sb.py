@@ -316,5 +316,27 @@ class TestEndpointVersions(TestCase):
         self.assertFalse(events.empty)
 
 
+class TestRequestCache(TestCase):
+    def test_importing_statsbombpy_leaves_requests_alone(self):
+        import requests
+        import requests_cache
+
+        self.assertFalse(requests_cache.is_installed())
+        self.assertNotIsInstance(requests.Session(), requests_cache.CachedSession)
+
+    def test_both_clients_use_the_statsbombpy_session(self):
+        import requests_cache
+        from statsbombpy import public
+        from statsbombpy.cache import session
+
+        self.assertIsInstance(session, requests_cache.CachedSession)
+        with patch.object(session, "get") as get:
+            get.return_value.status_code = 200
+            get.return_value.json.return_value = []
+            public.get_response("https://example.test/open-data.json")
+            api_client.get_resource("https://example.test/api", DEFAULT_CREDS)
+        self.assertEqual(get.call_count, 2)
+
+
 if __name__ == "__main__":
     main()
